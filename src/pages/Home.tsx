@@ -1,143 +1,87 @@
-import { useEffect, useMemo, useState } from "react";
-import api from "../lib/api";
-import { formatBRL } from "../lib/format";
+import { useEffect, useState } from "react";
+import { listOffers } from "@/lib/api";
+import { Link } from "react-router-dom";
 
-type Category = { id: string; name: string; slug?: string };
-type Offer = {
-  id: string;
-  title: string;
-  priceBase: any; // string/Decimal/number
-  provider?: { user?: { name?: string; photoUrl?: string } };
-};
 
-function humanizeSlug(slug?: string, fallback?: string) {
-  if (slug && typeof slug === "string") return slug.replace(/-/g, " ");
-  return fallback ?? "categoria";
+type Offer = { id: string; title: string; priceBase: number | string; provider?: { user?: { name?: string | null } | null } | null };
+
+function money(v: number | string) {
+  const n = Number(v ?? 0);
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 export default function Home() {
-  const [cats, setCats] = useState<Category[]>([]);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    let mounted = true;
     (async () => {
       try {
-        setLoading(true);
-        setErr(null);
-
-        const catsRes = await api.get("/categories");
-        const rawCats = Array.isArray(catsRes.data?.items)
-          ? catsRes.data.items
-          : Array.isArray(catsRes.data)
-          ? catsRes.data
-          : [];
-        const catItems: Category[] = rawCats.map((c: any) => ({
-          id: c.id,
-          name: c.name,
-          slug: c.slug ?? "",
-        }));
-        const catsTop = catItems.slice(0, 6);
-
-        const offRes = await api.get("/offers", {
-          params: { active: true, pageSize: 6, order: "desc" },
-        });
-        const offItems: Offer[] = Array.isArray(offRes.data?.items)
-          ? offRes.data.items
-          : [];
-
-        if (!mounted) return;
-        setCats(catsTop);
-        setOffers(offItems);
-      } catch (e: any) {
-        console.error(e);
-        if (!mounted) return;
-        setErr(e?.response?.data?.error?.message || "Falha ao carregar dados.");
+        const res = await listOffers({ page: 1, pageSize: 6 });
+        setOffers(res.items ?? []);
       } finally {
-        if (mounted) setLoading(false);
+        setLoading(false);
       }
     })();
-    return () => {
-      mounted = false;
-    };
   }, []);
 
-  const serviceBoxes = useMemo(() => {
-    if (cats.length === 0) return null;
-    return (
-      <div className="mt-6 grid sm:grid-cols-2 lg:grid-cols-6 gap-4">
-        {cats.map((c) => (
-          <div
-            key={c.id}
-            className="rounded-2xl border p-4 bg-white/60 dark:bg-zinc-900/50"
-          >
-            <div className="text-sm font-medium">{c.name}</div>
-            <div className="text-xs opacity-70">
-              {humanizeSlug(c.slug, c.name)}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }, [cats]);
-
   return (
-    <div className="px-4 py-8 max-w-7xl mx-auto">
-      <h1 className="text-3xl sm:text-5xl font-bold">
-        Limpeza <span className="text-blue-600">profissional</span> na sua mão
-      </h1>
+    <div className="space-y-10">
+      {/* Hero */}
+      <section className="rounded-2xl bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-gray-800 dark:to-gray-800 p-8">
+        <h1 className="text-4xl font-bold leading-tight">
+          Limpeza <span className="text-blue-600">profissional</span> na palma da sua mão
+        </h1>
+        <p className="mt-3 opacity-80 max-w-2xl">
+          Encontre os melhores prestadores da sua região. Qualidade garantida, preços justos e avaliações reais.
+        </p>
+        <div className="mt-6 flex gap-3">
+  <Link to="/app/offers" className="btn btn-solid">
+    Encontrar Prestadores
+  </Link>
 
-      {loading && <div className="mt-8">Carregando…</div>}
-      {err && (
-        <div className="mt-8 rounded-xl border border-red-400 bg-red-50 p-4">
-          {err}
-        </div>
-      )}
-
-      <section className="mt-10">
-        <h2 className="text-xl font-semibold mb-2">Tipos de Serviço</h2>
-        {serviceBoxes}
+  <Link to="/como-funciona" className="btn btn-outline">
+    Como Funciona
+  </Link>
+</div>
       </section>
 
-      <section className="mt-12">
-        <h2 className="text-xl font-semibold mb-4">Ofertas em destaque</h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {offers.map((o) => (
-            <div
-              key={o.id}
-              className="rounded-2xl border p-5 bg-white/70 dark:bg-zinc-900/60"
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="size-10 rounded-full bg-zinc-200" />
-                <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">
-                    {o.provider?.user?.name ?? "Prestador"}
-                  </div>
-                  <div className="text-xs opacity-70 truncate">
-                    {o.title ?? "Serviço de limpeza"}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <span className="text-sm opacity-70">a partir de</span>
-                <div className="text-right">
-                  <span className="font-semibold">{formatBRL(o.priceBase)}</span>
+      {/* Tipos de serviço – placeholder estático por enquanto */}
+      <section>
+        <h2 className="section-title mb-4">Tipos de Serviço</h2>
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {["Residencial","Comercial","Veículos","Lavanderia","Pesada","Urgente"].map((t) => (
+            <div key={t} className="card p-5 text-center">
+              <div className="text-sm opacity-70">{t}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Ofertas (API) */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="section-title">Prestadores disponíveis</h2>
+          <a href="/app/offers" className="text-sm text-blue-600 hover:underline">Ver todas</a>
+        </div>
+
+        {loading && <div className="opacity-70">Carregando...</div>}
+
+        {!loading && (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {offers.map((o) => (
+              <div key={o.id} className="card p-5">
+                <div className="font-medium">{o.title}</div>
+                <div className="text-sm opacity-70">{o.provider?.user?.name ?? "Prestador"}</div>
+                <div className="mt-3 text-right">
+                  <span className="font-semibold">{money(o.priceBase)}</span>
                   <span className="text-xs opacity-70 ml-1">/hora</span>
                 </div>
               </div>
-              <button className="mt-4 w-full rounded-xl bg-blue-600 text-white py-2.5">
-                Ver perfil
-              </button>
-            </div>
-          ))}
-          {offers.length === 0 && !loading && (
-            <div className="text-sm opacity-70">
-              Nenhuma oferta encontrada no momento.
-            </div>
-          )}
-        </div>
+            ))}
+            {offers.length === 0 && <div className="opacity-70">Nenhuma oferta encontrada.</div>}
+          </div>
+        )}
       </section>
     </div>
   );

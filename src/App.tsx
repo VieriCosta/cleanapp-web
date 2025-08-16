@@ -1,63 +1,82 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import LoginPage from "./pages/Login";
-import CustomerDashboard from "./pages/CustomerDashboard";
-import ProviderDashboard from "./pages/ProviderDashboard";
-import OffersPage from "./pages/Offers";
-import ConversationsPage from "./pages/Conversations";
-import { Protected } from "./components/Protected";
-import Layout from "./components/Layout";
-import AddressesPage from "./pages/Addresses";
-import Home from "./pages/Home";
+
+import Layout from "@/components/Layout";
+import Home from "@/pages/Home";
+import LoginPage from "@/pages/Login";
+import OffersPage from "@/pages/Offers";
+import CustomerJobs from "@/pages/CustomerJobs";
+import ConversationsPage from "@/pages/Conversations";
+import ConversationDetail from "@/pages/ConversationDetail";
+import ProviderDashboard from "@/pages/ProviderJobs";
+import { Protected } from "@/components/Protected";
+import HowItWorks from "@/pages/HowItWorks";
+import RegisterPage from "./pages/Register";
+
+function NotFound() {
+  return (
+    <div className="container py-10">
+      <h1 className="text-2xl font-semibold mb-2">Página não encontrada</h1>
+      <p className="opacity-70">A rota acessada não existe.</p>
+    </div>
+  );
+}
 
 export default function App() {
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<LoginPage />} />
+    <Routes>
+      {/* rotas com layout */}
+      <Route path="/" element={<Layout />}>
+        <Route index element={<Home />} />
+
         <Route
-          path="/offers"
+          path="app/offers"
           element={
-            <Protected roles={["customer","provider"]}>
+            <Protected>
               <OffersPage />
             </Protected>
           }
         />
         <Route
-          path="/conversations"
+          path="app/jobs"
           element={
-            <Protected roles={["customer","provider"]}>
+            <Protected>
+              <CustomerJobs />
+            </Protected>
+          }
+        />
+        <Route
+          path="app/conversations"
+          element={
+            <Protected>
               <ConversationsPage />
             </Protected>
           }
         />
-
         <Route
-          path="/customer"
+          path="app/conversations/:id"
           element={
-            <Protected roles={["customer"]}>
-              <CustomerDashboard />
+            <Protected>
+              <ConversationDetail />
             </Protected>
           }
         />
         <Route
-          path="/provider"
+          path="app/provider"
           element={
-            <Protected roles={["provider"]}>
+            <Protected roles={["provider", "admin"]}>
               <ProviderDashboard />
             </Protected>
           }
         />
-        <Route
-          path="/addresses"
-          element={
-            <Protected roles={["customer","provider","admin"]}>
-              <AddressesPage />
-            </Protected>
-          }
-        />
-        <Route path="*" element={<div className="p-8">Página não encontrada</div>} />
-      </Routes>
-    </Layout>
+
+        <Route path="*" element={<NotFound />} />
+      </Route>
+
+      {/* rotas fora do layout */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/app" element={<Navigate to="/" replace />} />
+      <Route path="/como-funciona" element={<HowItWorks />} />
+      <Route path="/register" element={<RegisterPage />} />
+    </Routes>
   );
 }

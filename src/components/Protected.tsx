@@ -1,12 +1,21 @@
-import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../store/auth';
+import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/store/auth";
 
-export function Protected({ children, roles }: { children: React.ReactNode; roles?: Array<'customer'|'provider'|'admin'> }) {
-  const { user } = useAuth();
+export function Protected({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
   const location = useLocation();
 
-  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
-  if (roles && !roles.includes(user.role)) return <div>Acesso negado</div>;
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center text-sm opacity-70">
+        Carregando…
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
 
   return <>{children}</>;
 }

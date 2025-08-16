@@ -1,62 +1,82 @@
-import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../store/auth";
-import { Card, CardContent, CardHeader } from "../components/ui/Card";
-import Label from "../components/ui/Label";
-import Input from "../components/ui/Input";
-import Button from "../components/ui/Button";
-import Spinner from "../components/ui/Spinner";
+import { FormEvent, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/store/auth";
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const nav = useNavigate();
-  const loc = useLocation() as any;
+  const navigate = useNavigate();
+  const location = useLocation() as any;
+
   const [email, setEmail] = useState("cliente1@cleanapp.local");
   const [password, setPassword] = useState("cliente123");
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  async function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    setLoading(true); setErr("");
+    if (submitting) return;
+
+    setSubmitting(true);
+    setError(null);
+
     try {
-      await login(email, password);
-      const to = loc.state?.from?.pathname ?? "/";
-      nav(to);
-    } catch (e: any) {
-      setErr(e?.response?.data?.error?.message ?? "Falha no login");
+      await login(email, password); // ← isso define o user no contexto
+      const to = location.state?.from?.pathname || "/";
+      navigate(to, { replace: true });
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        "Usuário ou senha inválidos.";
+      setError(msg);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   }
 
   return (
-    <div className="max-w-md mx-auto py-12">
-      <Card>
-        <CardHeader>
-          <h1 className="text-2xl font-semibold">Bem-vindo(a)</h1>
-          <p className="text-sm text-gray-500">Acesse sua conta para continuar</p>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit} className="grid gap-3">
-            <div className="grid gap-1">
-              <Label>Email</Label>
-              <Input placeholder="email@exemplo.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
-            <div className="grid gap-1">
-              <Label>Senha</Label>
-              <Input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
-            </div>
-            {err && <p className="text-sm text-red-600">{err}</p>}
-            <Button disabled={loading} className="gap-2">
-              {loading && <Spinner />} Entrar
-            </Button>
-            <p className="text-xs text-gray-500">
-              Dica: prestador1@cleanapp.local / prestador123
-            </p>
-          </form>
-        </CardContent>
-      </Card>
+    <div className="min-h-[60vh] flex items-center justify-center p-6">
+      <form
+        onSubmit={onSubmit}
+        className="card w-full max-w-md p-6 space-y-4"
+        noValidate
+      >
+        <h1 className="text-xl font-semibold text-center">Entrar</h1>
+
+        {!!error && (
+          <div className="rounded-lg border border-red-300/40 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-1">
+          <label className="label">E-mail</label>
+          <input
+            className="input"
+            type="email"
+            autoComplete="username"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="label">Senha</label>
+          <input
+            className="input"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+
+        <button className="btn btn-solid w-full" disabled={submitting}>
+          {submitting ? "Entrando…" : "Entrar"}
+        </button>
+      </form>
     </div>
   );
 }

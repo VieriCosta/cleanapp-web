@@ -1,43 +1,23 @@
+// src/pages/Addresses.tsx
 import { useEffect, useState } from "react";
-import api from "../lib/api";
-import { Card, CardContent, CardHeader } from "../components/ui/Card";
-import Input from "../components/ui/Input";
-import Button from "../components/ui/Button";
-import { toast } from "sonner";
-
-type Address = {
-  id: string;
-  label?: string;
-  street: string;
-  number?: string;
-  district?: string;
-  city: string;
-  state: string;
-  zip: string;
-  isDefault: boolean;
-};
+import { getMyAddresses, createAddress, setDefaultAddress, deleteAddress, Address, NewAddress } from "@/lib/api";
+import AddressFormModal from "@/components/AddressFormModal";
 
 export default function AddressesPage() {
-  const [list, setList] = useState<Address[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState<Partial<Address>>({
-    label: "",
-    street: "",
-    number: "",
-    district: "",
-    city: "",
-    state: "",
-    zip: "",
-    isDefault: false,
-  });
+  const [items, setItems] = useState<Address[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
 
   async function load() {
+    setErr(null);
     setLoading(true);
     try {
-      const r = await api.get("/addresses/mine");
-      setList(r.data);
-    } catch {
-      toast.error("Falha ao carregar endereços");
+      const data = await getMyAddresses();
+      const list = Array.isArray(data) ? data : (data.items ?? []);
+      setItems(list);
+    } catch (e: any) {
+      setErr("Falha ao carregar endereços");
     } finally {
       setLoading(false);
     }
@@ -45,100 +25,57 @@ export default function AddressesPage() {
 
   useEffect(() => { load(); }, []);
 
-  function onChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const { name, value, type, checked } = e.target;
-    setForm((f) => ({ ...f, [name]: type === "checkbox" ? checked : value }));
+  async function onCreate(data: NewAddress) {
+    await createAddress({
+      ...data,
+      lat: data.lat != null && data.lat !== "" ? Number(data.lat) : undefined,
+      lng: data.lng != null && data.lng !== "" ? Number(data.lng) : undefined,
+    });
+    await load();
   }
 
-  async function onCreate(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      const payload = {
-        label: form.label?.trim(),
-        street: (form.street ?? "").trim(),
-        number: form.number?.trim(),
-        district: form.district?.trim(),
-        city: (form.city ?? "").trim(),
-        state: (form.state ?? "").trim(),
-        zip: (form.zip ?? "").trim(),
-        isDefault: !!form.isDefault,
-      };
-      await api.post("/addresses/mine", payload);
-      toast.success("Endereço criado");
-      setForm({ label: "", street: "", number: "", district: "", city: "", state: "", zip: "", isDefault: false });
-      load();
-    } catch (e: any) {
-      toast.error(e?.response?.data?.error?.message ?? "Erro ao criar endereço");
-    }
+  async function onSetDefault(id: string) {
+    await setDefaultAddress(id);
+    await load();
   }
 
-  async function setDefault(id: string) {
-    try {
-      await api.post(`/addresses/${id}/default`, {});
-      toast.success("Endereço definido como padrão");
-      load();
-    } catch {
-      toast.error("Erro ao definir padrão");
-    }
-  }
-
-  async function remove(id: string) {
-    if (!confirm("Remover este endereço?")) return;
-    try {
-      await api.delete(`/addresses/${id}`);
-      toast.success("Endereço removido");
-      load();
-    } catch (e: any) {
-      toast.error(e?.response?.data?.error?.message ?? "Erro ao remover");
-    }
+  async function onDelete(id: string) {
+    if (!confirm("Tem certeza que deseja remover este endereço?")) return;
+    await deleteAddress(id);
+    await load();
   }
 
   return (
-    <div className="grid gap-6">
-      <h2 className="section-title">Meus endereços</h2>
+    <div className="container py-8">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="section-title">Meus Endereços</h1>
+        <button className="btn btn-solid" onClick={() => setOpen(true)}>Novo endereço</button>
+      </div>
 
-      <Card>
-        <CardHeader><div className="font-medium">Novo endereço</div></CardHeader>
-        <CardContent>
-          <form onSubmit={onCreate} className="grid sm:grid-cols-2 gap-3">
-            <Input name="label" value={form.label ?? ""} onChange={onChange} placeholder="Rótulo (Casa, Trabalho)" />
-            <Input name="street" value={form.street ?? ""} onChange={onChange} placeholder="Rua/Av." required />
-            <Input name="number" value={form.number ?? ""} onChange={onChange} placeholder="Número" />
-            <Input name="district" value={form.district ?? ""} onChange={onChange} placeholder="Bairro" />
-            <Input name="city" value={form.city ?? ""} onChange={onChange} placeholder="Cidade" required />
-            <Input name="state" value={form.state ?? ""} onChange={onChange} placeholder="UF" required />
-            <Input name="zip" value={form.zip ?? ""} onChange={onChange} placeholder="CEP" required />
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="isDefault" checked={!!form.isDefault} onChange={onChange} />
-              Definir como padrão
-            </label>
-            <div className="sm:col-span-2">
-              <Button type="submit">Salvar</Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {loading && <div className="card p-5">Carregando...</div>}
+        {err && <div className="text-red-600">{err}</div>}
+        {!loading && !items.length && <div className="text-sm opacity-70">Nenhum endereço cadastrado.</div>}
 
-      <Card>
-        <CardHeader><div className="font-medium">Endereços cadastrados</div></CardHeader>
-        <CardContent className="grid gap-2">
-          {loading && <div className="text-sm text-gray-500">Carregando…</div>}
-          {!loading && list.length === 0 && <div className="text-sm text-gray-500">Nenhum endereço.</div>}
-          {!loading && list.map((a) => (
-            <div key={a.id} className="flex items-center justify-between rounded-xl border px-3 py-2">
-              <div className="text-sm">
-                <div className="font-medium">{a.label || "(sem rótulo)"} {a.isDefault && <span className="ml-2 text-xs rounded-full px-2 py-0.5 bg-gray-900 text-white dark:bg-white dark:text-gray-900">padrão</span>}</div>
-                <div className="opacity-70">{a.street}, {a.number} {a.district && `- ${a.district}`}</div>
-                <div className="opacity-70">{a.city} - {a.state} · {a.zip}</div>
+        {items.map((a) => (
+          <div key={a.id} className="card">
+            <div className="card-body space-y-1">
+              <div className="font-medium">{a.label || "Endereço"}</div>
+              <div className="text-sm opacity-80">
+                {a.street} {a.number ? `, ${a.number}` : ""}{a.district ? ` - ${a.district}` : ""}
               </div>
-              <div className="flex gap-2">
-                {!a.isDefault && <Button onClick={() => setDefault(a.id)} variant="secondary">Tornar padrão</Button>}
-                <Button onClick={() => remove(a.id)} variant="ghost">Excluir</Button>
+              <div className="text-sm opacity-80">{a.city} - {a.state} • {a.zip}</div>
+
+              <div className="flex justify-end gap-2 pt-3">
+                <button className="btn btn-outline" onClick={() => onSetDefault(a.id)}>Tornar padrão</button>
+                <button className="btn btn-ghost" onClick={() => onDelete(a.id)}>Excluir</button>
               </div>
             </div>
-          ))}
-        </CardContent>
-      </Card>
+          </div>
+        ))}
+      </div>
+
+      <AddressFormModal open={open} onClose={() => setOpen(false)} onSubmit={onCreate} />
     </div>
   );
 }
