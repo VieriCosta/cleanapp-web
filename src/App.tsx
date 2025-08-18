@@ -3,14 +3,21 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import Home from "@/pages/Home";
 import LoginPage from "@/pages/Login";
+import RegisterPage from "@/pages/Register";
+import HowItWorks from "@/pages/HowItWorks";
+import PricingPage from "@/pages/Pricing";
+
 import OffersPage from "@/pages/Offers";
 import CustomerJobs from "@/pages/CustomerJobs";
 import ConversationsPage from "@/pages/Conversations";
 import ConversationDetail from "@/pages/ConversationDetail";
-import ProviderDashboard from "@/pages/ProviderJobs";
+import ProviderDashboard from "@/pages/ProviderDashboard"; // <— usar este como principal
+
+import AddressesPage from "@/pages/Addresses";
+import ProfilePage from "@/pages/Profile";
+import CustomerDashboard from "@/pages/CustomerDashboard";
+
 import { Protected } from "@/components/Protected";
-import HowItWorks from "@/pages/HowItWorks";
-import RegisterPage from "./pages/Register";
 
 function NotFound() {
   return (
@@ -24,10 +31,14 @@ function NotFound() {
 export default function App() {
   return (
     <Routes>
-      {/* rotas com layout */}
+      {/* TODAS as páginas “públicas” e “internas” usando o mesmo Layout (ganham header/footer) */}
       <Route path="/" element={<Layout />}>
+        {/* públicas */}
         <Route index element={<Home />} />
+        <Route path="como-funciona" element={<HowItWorks />} />
+        <Route path="precos" element={<PricingPage />} />
 
+        {/* área logada (/app/...) */}
         <Route
           path="app/offers"
           element={
@@ -36,6 +47,7 @@ export default function App() {
             </Protected>
           }
         />
+
         <Route
           path="app/jobs"
           element={
@@ -44,6 +56,7 @@ export default function App() {
             </Protected>
           }
         />
+
         <Route
           path="app/conversations"
           element={
@@ -60,6 +73,36 @@ export default function App() {
             </Protected>
           }
         />
+
+        {/* NOVAS ROTAS que estavam “sobrando” */}
+        <Route
+          path="app/addresses"
+          element={
+            <Protected>
+              <AddressesPage />
+            </Protected>
+          }
+        />
+
+        <Route
+          path="app/profile"
+          element={
+            <Protected>
+              <ProfilePage />
+            </Protected>
+          }
+        />
+
+        <Route
+          path="app/dashboard"
+          element={
+            <Protected>
+              <CustomerDashboard />
+            </Protected>
+          }
+        />
+
+        {/* provider */}
         <Route
           path="app/provider"
           element={
@@ -69,14 +112,16 @@ export default function App() {
           }
         />
 
+        {/* catch-all */}
         <Route path="*" element={<NotFound />} />
       </Route>
 
-      {/* rotas fora do layout */}
+      {/* fora do layout: auth */}
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/app" element={<Navigate to="/" replace />} />
-      <Route path="/como-funciona" element={<HowItWorks />} />
       <Route path="/register" element={<RegisterPage />} />
+
+      {/* compat: enviar /app para / */}
+      <Route path="/app" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

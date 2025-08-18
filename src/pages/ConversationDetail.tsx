@@ -1,75 +1,103 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import {
-  getConversation,
-  listMessages,
-  sendMessage,
-  markAllRead,
-} from "@/lib/api";
+import { getConversation, listMessages, sendMessage, markAllRead } from "@/lib/api";
+import { useAuth } from "@/store/auth";
 
-type Message = {
-  id: string;
-  senderId: string;
-  content: string;
-  createdAt: string;
-};
+type Message = { id: string; content: string; senderId: string; createdAt?: string };
 
 export default function ConversationDetail() {
   const { id } = useParams<{ id: string }>();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { user } = useAuth();
+  const [convTitle, setConvTitle] = useState<string>("Conversa");
+  const [msgs, setMsgs] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    (async () => {
-      if (!id) return;
-      try {
-        await getConversation(id);
-        const m = await listMessages(id, { page: 1, pageSize: 50 });
-        setMessages(m.items ?? []);
-        await markAllRead(id);
-      } catch (e: any) {
-        setError(e?.message ?? "Erro ao carregar conversa");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [id]);
+  async function load() {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const conv = await getConversation(id);
+      // tenta ler um nome amigável no objeto retornado
+      const title =
+        conv?.partner?.name ||
+        conv?.participants?.find((p: any) => p.userId !== user?.id)?.user?.name ||
+        "Conversa";
+      setConvTitle(title);
 
-  async function handleSend() {
-    if (!id || !text.trim()) return;
-    const msg = await sendMessage(id, text.trim());
-    setMessages((prev) => [...prev, msg.message]);
-    setText("");
+      const data = await listMessages(id, { page: 1, pageSize: 100 });
+      const items = Array.isArray(data) ? data : data?.items ?? [];
+      setMsgs(items);
+
+      // marca lidas
+      await markAllRead(id);
+    } finally {
+      setLoading(false);
+      requestAnimationFrame(() => listRef.current?.scrollTo({ top: 999999 }));
+    }
   }
 
-  if (loading) return <div className="card p-6">Carregando…</div>;
-  if (error) return <div className="card p-6 text-red-600">Erro: {error}</div>;
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  async function onSend(e: React.FormEvent) {
+    e.preventDefault();
+    if (!id || !text.trim()) return;
+    const payload = text.trim();
+    setText("");
+    try {
+      const { message } = await sendMessage(id, payload);
+      setMsgs((prev) => [...prev, message ?? { id: Math.random().toString(), content: payload, senderId: user?.id! }]);
+      requestAnimationFrame(() => listRef.current?.scrollTo({ top: 999999, behavior: "smooth" }));
+    } catch {
+      // opcional: mostrar toast
+    }
+  }
 
   return (
-    <div className="card p-4 flex flex-col gap-4">
-      <div className="max-h-[60vh] overflow-auto space-y-3">
-        {messages.map((m) => (
-          <div key={m.id} className="rounded-lg bg-gray-100 dark:bg-gray-800 p-3">
-            <div className="text-sm opacity-70">{new Date(m.createdAt).toLocaleString()}</div>
-            <div>{m.content}</div>
-          </div>
-        ))}
-        {messages.length === 0 && <div>Sem mensagens.</div>}
-      </div>
+    <div className="container py-8">
+      <h1 className="section-title mb-4">{convTitle}</h1>
 
-      <div className="flex gap-2">
-        <input
-          className="input flex-1"
-          placeholder="Escreva uma mensagem…"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-        />
-        <button className="btn btn-solid" onClick={handleSend}>
-          Enviar
-        </button>
+      <div className="card">
+        <div ref={listRef} className="card-body max-h-[60vh] overflow-auto space-y-2">
+          {loading ? (
+            <div className="opacity-70">Carregando…</div>
+          ) : msgs.length === 0 ? (
+            <div className="opacity-70">Nenhuma mensagem ainda.</div>
+          ) : (
+            msgs.map((m) => {
+              const mine = m.senderId === user?.id;
+              return (
+                <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`px-3 py-2 rounded-2xl max-w-[70%] ${
+                      mine
+                        ? "bg-blue-600 text-white rounded-br-sm"
+                        : "bg-gray-100 dark:bg-gray-700 dark:text-gray-100 rounded-bl-sm"
+                    }`}
+                  >
+                    <div className="text-sm leading-relaxed">{m.content}</div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <form onSubmit={onSend} className="border-t border-gray-200 dark:border-gray-700 p-3 flex gap-2">
+          <input
+            className="input flex-1"
+            placeholder="Digite sua mensagem…"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
+          <button className="btn btn-solid" type="submit" disabled={!text.trim()}>
+            Enviar
+          </button>
+        </form>
       </div>
     </div>
   );

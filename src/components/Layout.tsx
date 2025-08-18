@@ -3,6 +3,7 @@ import { useAuth } from "@/store/auth";
 import ThemeToggle from "@/theme/ThemeToggle";
 import Footer from "@/components/Footer";
 
+
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -24,7 +25,6 @@ export default function Layout() {
           <nav className="flex items-center gap-2">
             <NavLink to="/" end className={({isActive}) => `px-3 py-2 rounded-xl text-sm ${isActive?'bg-blue-600 text-white':'hover:bg-gray-100 dark:hover:bg-gray-800'}`}>Home</NavLink>
             <NavLink to="/app/offers" className={({isActive}) => `px-3 py-2 rounded-xl text-sm ${isActive?'bg-blue-600 text-white':'hover:bg-gray-100 dark:hover:bg-gray-800'}`}>Ofertas</NavLink>
-            <NavLink to="/app/jobs" className={({isActive}) => `px-3 py-2 rounded-xl text-sm ${isActive?'bg-blue-600 text-white':'hover:bg-gray-100 dark:hover:bg-gray-800'}`}>Meus Jobs</NavLink>
             <NavLink to="/app/conversations" className={({isActive}) => `px-3 py-2 rounded-xl text-sm ${isActive?'bg-blue-600 text-white':'hover:bg-gray-100 dark:hover:bg-gray-800'}`}>Conversas</NavLink>
           </nav>
 
@@ -32,10 +32,10 @@ export default function Layout() {
             <ThemeToggle />
             {user ? (
               <>
-                <div className="flex items-center gap-2 px-2 py-1 rounded-xl border border-gray-200 dark:border-gray-700">
-                  <div className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-700" />
-                  <span className="text-sm opacity-80">{user.name}</span>
-                </div>
+                <Link to="/app/profile" title="Meu perfil" aria-label="Ir para o meu perfil" className="inline-flex h-6 w-6 rounded-full overflow-hidden ring-2 ring-transparent hover:ring-blue-400 transition">
+  <img src={user.photoUrl} alt="Foto de perfil" className="h-full w-full object-cover" />
+</Link>
+
                 <button onClick={handleLogout} className="px-3 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800">Sair</button>
               </>
             ) : (

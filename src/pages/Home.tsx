@@ -1,24 +1,38 @@
+// src/pages/Home.tsx
 import { useEffect, useState } from "react";
-import { listOffers } from "@/lib/api";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import ProviderCard from "@/components/ui/ProviderCard";
+import { listOffers, Offer } from "@/lib/api";
 
-
-type Offer = { id: string; title: string; priceBase: number | string; provider?: { user?: { name?: string | null } | null } | null };
-
-function money(v: number | string) {
-  const n = Number(v ?? 0);
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
+type OffersResp = {
+  total: number;
+  page: number;
+  pageSize: number;
+  items: Offer[];
+};
 
 export default function Home() {
-  const [offers, setOffers] = useState<Offer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  const [offers, setOffers] = useState<OffersResp>({
+    total: 0,
+    page: 1,
+    pageSize: 6,
+    items: [],
+  });
+  const [loading, setLoading] = useState<boolean>(true);
+  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await listOffers({ page: 1, pageSize: 6 });
-        setOffers(res.items ?? []);
+        setLoading(true);
+        setErr(null);
+        const data = await listOffers({ page: 1, pageSize: 6 });
+        // listOffers já retorna { total, page, pageSize, items }
+        setOffers(data);
+      } catch (e: any) {
+        setErr(e?.response?.data?.message || e?.message || "Falha ao carregar ofertas");
       } finally {
         setLoading(false);
       }
@@ -26,63 +40,152 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="space-y-10">
-      {/* Hero */}
-      <section className="rounded-2xl bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-gray-800 dark:to-gray-800 p-8">
-        <h1 className="text-4xl font-bold leading-tight">
-          Limpeza <span className="text-blue-600">profissional</span> na palma da sua mão
-        </h1>
-        <p className="mt-3 opacity-80 max-w-2xl">
-          Encontre os melhores prestadores da sua região. Qualidade garantida, preços justos e avaliações reais.
-        </p>
-        <div className="mt-6 flex gap-3">
-  <Link to="/app/offers" className="btn btn-solid">
-    Encontrar Prestadores
-  </Link>
+    <main className="pb-16">
+      {/* HERO */}
+      <section className="w-full bg-gradient-to-br from-sky-50 to-blue-50 dark:from-gray-900 dark:to-gray-900/60 border-b border-gray-200/60 dark:border-gray-800">
+        <div className="container py-10 md:py-14">
+          <div className="grid md:grid-cols-2 gap-10 items-center">
+            {/* Texto à esquerda */}
+            <div>
+              <h1 className="text-3xl md:text-4xl font-semibold leading-tight">
+                Limpeza <span className="text-blue-600">profissional</span> na palma da sua mão
+              </h1>
+              <p className="mt-3 text-gray-600 dark:text-gray-300">
+                Encontre os melhores prestadores de serviços de limpeza da sua região.
+                Qualidade garantida, preços justos e avaliações reais.
+              </p>
 
-  <Link to="/como-funciona" className="btn btn-outline">
-    Como Funciona
-  </Link>
-</div>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button
+                  onClick={() => navigate("/app/offers")}
+                  className="btn btn-solid"
+                >
+                  Encontrar Prestadores
+                </button>
+                <button
+                  onClick={() => navigate("/como-funciona")}
+                  className="btn btn-outline"
+                >
+                  Como Funciona
+                </button>
+              </div>
+
+              <div className="mt-8 grid grid-cols-3 gap-6 text-sm">
+                <div>
+                  <div className="text-xl font-semibold">1000+</div>
+                  <div className="opacity-70">Prestadores</div>
+                </div>
+                <div>
+                  <div className="text-xl font-semibold">50k+</div>
+                  <div className="opacity-70">Serviços</div>
+                </div>
+                <div>
+                  <div className="text-xl font-semibold">4.8</div>
+                  <div className="opacity-70">Avaliação</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Imagem à direita (veio do /public) */}
+            <div className="relative">
+              <img
+                src="/imageHome.jpg"
+                alt="Ambiente limpo e organizado"
+                className="w-full rounded-2xl shadow-md object-cover"
+              />
+              {/* badge flutuante (decorativo) */}
+              <div className="absolute -bottom-4 left-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 shadow">
+                <div className="text-sm font-medium">Maria Silva</div>
+                <div className="text-xs opacity-70">Limpeza Completa • Agendado para hoje</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
-      {/* Tipos de serviço – placeholder estático por enquanto */}
-      <section>
+      {/* TIPOS DE SERVIÇO (chips estáticos) */}
+      <section className="container py-10">
         <h2 className="section-title mb-4">Tipos de Serviço</h2>
-        <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {["Residencial","Comercial","Veículos","Lavanderia","Pesada","Urgente"].map((t) => (
-            <div key={t} className="card p-5 text-center">
-              <div className="text-sm opacity-70">{t}</div>
-            </div>
+        <p className="opacity-70 mb-6">
+          Escolha o tipo de limpeza que você precisa e encontre os melhores profissionais.
+        </p>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-6 gap-4">
+          {[
+            "Residencial",
+            "Comercial",
+            "Veículos",
+            "Lavanderia",
+            "Pesada",
+            "Urgente",
+          ].map((label) => (
+            <button
+              key={label}
+              type="button"
+              className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 text-center hover:shadow-sm transition"
+            >
+              {label}
+            </button>
           ))}
         </div>
       </section>
 
-      {/* Ofertas (API) */}
-      <section>
+      {/* PRESTADORES DISPONÍVEIS (cards vindos da API) */}
+      <section className="container">
         <div className="flex items-center justify-between mb-4">
           <h2 className="section-title">Prestadores disponíveis</h2>
-          <a href="/app/offers" className="text-sm text-blue-600 hover:underline">Ver todas</a>
+          <button
+            type="button"
+            onClick={() => navigate("/app/offers")}
+            className="text-sm text-blue-600 hover:underline"
+          >
+            Ver todas as ofertas
+          </button>
         </div>
 
-        {loading && <div className="opacity-70">Carregando...</div>}
-
-        {!loading && (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {offers.map((o) => (
-              <div key={o.id} className="card p-5">
-                <div className="font-medium">{o.title}</div>
-                <div className="text-sm opacity-70">{o.provider?.user?.name ?? "Prestador"}</div>
-                <div className="mt-3 text-right">
-                  <span className="font-semibold">{money(o.priceBase)}</span>
-                  <span className="text-xs opacity-70 ml-1">/hora</span>
-                </div>
-              </div>
-            ))}
-            {offers.length === 0 && <div className="opacity-70">Nenhuma oferta encontrada.</div>}
+        {err && (
+          <div className="rounded-2xl border border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/20 p-4 text-red-700 dark:text-red-300 mb-6">
+            {err}
           </div>
         )}
+
+        {loading && (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 animate-pulse h-44"
+              />
+            ))}
+          </div>
+        )}
+
+        {!loading && !err && (
+          <>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {offers.items.map((o) => (
+                <ProviderCard
+                  key={o.id}
+                  offer={o}
+                  // Ex.: se futuramente o backend devolver mais dados, você pode preencher:
+                  // distanceKm={o.distanceKm}
+                  // rating={o.ratingAvg}
+                  // ratingCount={o.ratingCount}
+                  // verified={o.provider?.profile?.verified}
+                  // tags={o.tags}
+
+                  onOpenProfile={() => navigate(`/profile?offer=${o.id}`)}
+                  onMessage={() => navigate(`/app/conversations`)}
+                />
+              ))}
+            </div>
+
+            {offers.items.length === 0 && (
+              <div className="opacity-70">Nenhum prestador encontrado.</div>
+            )}
+          </>
+        )}
       </section>
-    </div>
+    </main>
   );
 }
