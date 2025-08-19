@@ -1,65 +1,35 @@
-// src/lib/api.ts
-import axios, { AxiosRequestConfig } from "axios";
+import axios from "axios";
 import { getTokens, setTokens, clearTokens } from "@/store/auth.storage";
 
-// --- Base URL (sem barra no final) ---
 const BASE =
   import.meta.env.VITE_API_BASE ||
   import.meta.env.VITE_API_URL ||
   "http://localhost:3000/api";
 
-if (import.meta.env.DEV) console.info("[API BASE]", BASE);
-
-// --- Marca interna no config para evitar loop de refresh ---
-declare module "axios" {
-  // só para uso interno nosso
-  export interface AxiosRequestConfig {
-    _retry?: boolean;
-  }
-}
-
 const api = axios.create({ baseURL: BASE });
 
-// Controle de refresh
+// ---------- Auth Interceptors ----------
 let isRefreshing = false;
 let queue: Array<(token?: string) => void> = [];
 
-// Helper: endpoints que NÃO devem receber Authorization
-function isAuthRoute(url?: string) {
-  const u = String(url || "");
-  return u.startsWith("/auth/login") || u.startsWith("/auth/refresh");
-}
-
-// ---------- Request interceptor ----------
 api.interceptors.request.use((config) => {
-  if (!isAuthRoute(config.url)) {
-    const t = getTokens();
-    if (t?.accessToken) {
-      config.headers = config.headers ?? {};
-      (config.headers as any).Authorization = `Bearer ${t.accessToken}`;
-    }
-  }
+  const t = getTokens();
+  if (t?.accessToken) config.headers.Authorization = `Bearer ${t.accessToken}`;
   return config;
 });
 
-// ---------- Response interceptor ----------
 api.interceptors.response.use(
   (r) => r,
   async (err) => {
     const status = err?.response?.status;
-    const original: AxiosRequestConfig = err?.config || {};
+    const original = err?.config || {};
     const t = getTokens();
 
-    // Tenta refresh quando:
-    // - 401
-    // - temos refreshToken
-    // - não é /auth/login
-    // - ainda não tentamos (_retry)
     if (
       status === 401 &&
       t?.refreshToken &&
       !original._retry &&
-      !isAuthRoute(original.url)
+      !String(original?.url || "").includes("/auth/login")
     ) {
       original._retry = true;
 
@@ -73,8 +43,6 @@ api.interceptors.response.use(
             accessToken: data.accessToken,
             refreshToken: data.refreshToken,
           });
-
-          // Libera a fila
           queue.forEach((cb) => cb(data.accessToken));
           queue = [];
           isRefreshing = false;
@@ -87,34 +55,32 @@ api.interceptors.response.use(
         }
       }
 
-      // Espera o refresh terminar e refaz a requisição original
       return new Promise((resolve, reject) => {
         queue.push((newAccess) => {
           if (!newAccess) return reject(err);
-          original.headers = original.headers ?? {};
-          (original.headers as any).Authorization = `Bearer ${newAccess}`;
+          original.headers = original.headers || {};
+          original.headers.Authorization = `Bearer ${newAccess}`;
           resolve(api(original));
         });
       });
     }
 
     if (status === 401) {
-      // 401 “real” (login errado, sessão expirada sem refresh, etc.)
       clearTokens();
     }
     throw err;
   }
 );
 
-/* ============ AUTH ============ */
+/* ===== AUTH ===== */
 export async function login(email: string, password: string) {
-  // IMPORTANTE: essa chamada vai sem Authorization por causa do interceptor acima
   const { data } = await api.post("/auth/login", { email, password });
   setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
   return data; // { accessToken, refreshToken, user }
 }
 
 export function logout() {
+  // <<< ESTE EXPORT PRECISA EXISTIR
   clearTokens();
 }
 
@@ -123,7 +89,45 @@ export async function me() {
   return data; // { user }
 }
 
-/* ============ ADDRESSES (cliente) ============ */
+// ============ USER (Perfil) ============
+export async function getMyProfile() {
+  const { data } = await api.get("/users/me");
+  return data as { user: any };
+}
+export async function updateMyProfile(payload: { name?: string; phone?: string }) {
+  const { data } = await api.patch("/users/me", payload);
+  return data as { user: any };
+}
+export async function changeMyPassword(currentPassword: string, newPassword: string) {
+  const { data } = await api.post("/users/me/change-password", {
+    currentPassword,
+    newPassword,
+  });
+  return data as { ok: true };
+}
+export async function uploadMyAvatar(file: File) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const { data } = await api.post("/users/me/photo", fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data as { ok: true; photoUrl: string };
+}
+
+// ============ ADDRESSES ============
+export type Address = {
+  id: string;
+  label?: string | null;
+  street?: string | null;
+  number?: string | null;
+  district?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  isDefault?: boolean | null;
+};
 export type NewAddress = {
   label?: string;
   street: string;
@@ -137,65 +141,90 @@ export type NewAddress = {
   isDefault?: boolean;
 };
 
+export async function getMyAddresses() {
+  const { data } = await api.get("/addresses");
+  return data as { total?: number; items?: Address[] } | Address[];
+}
+
 export async function createAddress(payload: NewAddress) {
   const { data } = await api.post("/addresses", payload);
   return data;
 }
-
+export async function deleteAddress(addressId: string) {
+  const { data } = await api.delete(`/addresses/${addressId}`);
+  return data;
+}
 export async function setDefaultAddress(addressId: string) {
   const { data } = await api.post(`/addresses/${addressId}/set-default`);
   return data;
 }
 
-export async function deleteAddress(addressId: string) {
-  const { data } = await api.delete(`/addresses/${addressId}`);
-  return data;
-}
-
-export async function register(payload: {
-  name: string;
-  email: string;
-  phone?: string;
-  password: string;
-  role: 'customer' | 'provider';
-  bio?: string;
-  radiusKm?: number;
-}) {
-  const { data } = await api.post('/auth/register', payload);
-  setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
-  return data as { accessToken: string; refreshToken: string; user: any };
-}
-
-/* ============ OFFERS ============ */
+// ============ OFFERS ============
 export type Offer = {
   id: string;
   title: string;
   priceBase: number | string;
   provider?: { user?: { name?: string | null } | null } | null;
 };
-
 export async function listOffers(params: { page?: number; pageSize?: number } = {}) {
   const { data } = await api.get("/offers", { params });
   return data as { total: number; page: number; pageSize: number; items: Offer[] };
 }
 
-/* ============ ADDRESSES (meus) ============ */
-export type Address = {
+// --- TYPES (se ainda não tiver) ---
+export type JobStatus = "pending" | "accepted" | "started" | "done" | "canceled";
+export type PaymentStatus = "none" | "hold" | "captured" | "refunded" | "failed";
+
+export type Job = {
   id: string;
-  label?: string | null;
-  street?: string | null;
-  city?: string | null;
-  state?: string | null;
-  lat?: number | null;
-  lng?: number | null;
+  status: JobStatus;
+  paymentStatus?: PaymentStatus;
+  datetime?: string | null;
+  notes?: string | null;
+  priceEstimated?: number | string | null;
+  priceFinal?: number | string | null;
+  customer?: { id: string; name?: string | null } | null;
+  provider?: { id: string; name?: string | null } | null;
+  category?: { id: string; name?: string | null; slug?: string | null } | null;
+  offer?: { id: string; title?: string | null } | null;
+  address?: { label?: string | null; city?: string | null; state?: string | null } | null;
 };
 
-export async function getMyAddresses() {
-  const { data } = await api.get("/addresses"); // ajuste se sua rota for /addresses/mine
-  return data as { total: number; items: Address[] } | Address[];
+// ========= JOBS (PRESTADOR) =========
+export async function listProviderJobs(params: {
+  page?: number;
+  pageSize?: number;
+  status?: JobStatus | "all";
+}) {
+  const { data } = await api.get("/jobs", {
+    params: { role: "provider", ...params },
+  });
+  return data as { total: number; page: number; pageSize: number; items: Job[] };
 }
 
-/* ============ JOBS (cliente) ============ */
+export async function acceptJob(jobId: string) {
+  const { data } = await api.post(`/jobs/${jobId}/accept`);
+  return data;
+}
+export async function startJob(jobId: string) {
+  const { data } = await api.post(`/jobs/${jobId}/start`);
+  return data;
+}
+export async function finishJob(jobId: string) {
+  const { data } = await api.post(`/jobs/${jobId}/finish`);
+  return data;
+}
+export async function cancelJob(jobId: string) {
+  const { data } = await api.post(`/jobs/${jobId}/cancel`);
+  return data;
+}
+
+
+// ============ JOBS (cliente) ============
+export async function listCustomerJobs(params: any = {}) {
+  const { data } = await api.get("/jobs", { params: { role: "customer", ...params } });
+  return data;
+}
 export async function createJob(params: {
   offerId: string;
   addressId: string;
@@ -206,22 +235,15 @@ export async function createJob(params: {
   return data; // { job, distanceKm }
 }
 
-export async function listCustomerJobs(params: any = {}) {
-  const { data } = await api.get("/jobs", { params: { role: "customer", ...params } });
-  return data;
-}
-
-/* ============ CONVERSAS ============ */
+// ============ CONVERSAS ============
 export async function listConversations(params: any = {}) {
   const { data } = await api.get("/conversations", { params });
   return data;
 }
-
 export async function getConversation(id: string) {
   const { data } = await api.get(`/conversations/${id}`);
   return data;
 }
-
 export async function listMessages(
   conversationId: string,
   params: { page?: number; pageSize?: number } = {}
@@ -229,12 +251,10 @@ export async function listMessages(
   const { data } = await api.get(`/conversations/${conversationId}/messages`, { params });
   return data;
 }
-
 export async function sendMessage(conversationId: string, text: string) {
   const { data } = await api.post(`/conversations/${conversationId}/messages`, { text });
   return data;
 }
-
 export async function markAllRead(conversationId: string) {
   const { data } = await api.post(
     `/conversations/${conversationId}/messages/mark-all-read`
@@ -242,24 +262,43 @@ export async function markAllRead(conversationId: string) {
   return data;
 }
 
-// --- CATEGORIES ---
-export type Category = {
-  id: string;
+/* ========= REGISTER ========= */
+export type RegisterPayload = {
   name: string;
-  slug: string;
-  icon?: string | null;
-  // se sua API retornar contagem, mantenha; caso não, é opcional
-  _count?: { offers?: number };
+  email: string;
+  password: string;
+  role: "customer" | "provider";
+  phone?: string;
 };
 
-export async function listCategories(params: { page?: number; pageSize?: number } = {}) {
-  // ajuste a rota se no seu back for diferente, ex: /categories/public
-  const { data } = await api.get("/categories", { params });
-  // esperado: { total, page, pageSize, items: Category[] } ou Category[]
-  return Array.isArray(data)
-    ? { total: data.length, page: 1, pageSize: data.length, items: data as Category[] }
-    : (data as { total: number; page: number; pageSize: number; items: Category[] });
+export async function register(payload: RegisterPayload) {
+  // ajuste a rota se sua API usar outro endpoint (ex.: "/users/register")
+  const { data } = await api.post("/auth/register", payload);
+
+  // se a API já devolver tokens, salvamos para logar automaticamente
+  if (data?.accessToken && data?.refreshToken) {
+    setTokens({
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+    });
+  }
+
+  return data; // pode ser { user, accessToken?, refreshToken? }
 }
+
+/* ======== SUPORTE / CONTATO ======== */
+export async function sendSupportMessage(payload: {
+  name: string;
+  email: string;
+  phone?: string;
+  subject: string;
+  message: string;
+}) {
+  // Crie essa rota no back se quiser processar de verdade
+  const { data } = await api.post("/support/contact", payload);
+  return data; // { ok: true }
+}
+
 
 
 export default api;

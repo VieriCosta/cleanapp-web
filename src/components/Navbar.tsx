@@ -1,72 +1,83 @@
-import { Link, NavLink } from "react-router-dom";
-import Button from "./ui/Button";
-import { useAuth } from "../store/auth";
-import { Handshake, Menu, X } from "lucide-react";
-import { useState } from "react";
-import ThemeToggle from "./ThemeToggle";
+import { Link, NavLink, Outlet } from "react-router-dom";
+import { useAuth } from "@/store/auth";
 
-export default function Navbar() {
+export default function Layout() {
   const { user, logout } = useAuth();
-  const [open, setOpen] = useState(false);
 
-  const LinkCls = ({ to, children }: any) => (
-    <NavLink
-      to={to}
-      className={({ isActive }) =>
-        `px-3 py-2 rounded-lg text-sm ${isActive ? "bg-gray-100 text-gray-900" : "text-gray-700 hover:bg-gray-50"}`
-      }
-      onClick={() => setOpen(false)}
-    >
-      {children}
-    </NavLink>
-  );
+  const navClass = ({ isActive }: { isActive: boolean }) =>
+    "px-3 py-2 rounded-xl transition " +
+    (isActive
+      ? "bg-blue-600 text-white"
+      : "hover:bg-gray-100 dark:hover:bg-gray-800");
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-      <div className="container h-16 flex items-center gap-4">
-        <Link to="/" className="flex items-center gap-2 font-semibold">
-          <Handshake className="w-5 h-5 text-brand" />
-          CleanApp
-        </Link>
+    <>
+      <header className="border-b dark:border-gray-800">
+        <div className="container h-14 flex items-center justify-between">
+          {/* logo */}
+          <Link to="/" className="font-semibold">
+            clean<span className="text-blue-600">app</span>
+          </Link>
 
-        {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-2 ml-4">
-  <LinkCls to="/login">Login</LinkCls>
-  <LinkCls to="/offers">Ofertas</LinkCls>
-  <LinkCls to="/conversations">Conversas</LinkCls>
-  {user?.role === "customer" && <LinkCls to="/customer">Cliente</LinkCls>}
-  {user?.role === "provider" && <LinkCls to="/provider">Prestador</LinkCls>}
-</nav>
+          {/* NAV */}
+          <nav className="flex gap-2">
+            <NavLink to="/" end className={navClass}>
+              Home
+            </NavLink>
 
-        <div className="ml-auto hidden md:flex items-center gap-2">
-  <ThemeToggle />
-  {user && (
-    <Button onClick={logout} variant="outline">
-      Sair ({user.name ?? user.email})
-    </Button>
-          )}
-        </div>
+            <NavLink to="/app/offers" className={navClass}>
+              Ofertas
+            </NavLink>
 
-        {/* Mobile toggle */}
-        <button className="ml-auto md:hidden btn btn-ghost" onClick={() => setOpen((v) => !v)} aria-label="Menu">
-          {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
-      </div>
+            {/* Cliente vê "Meus Jobs" */}
+            {user?.role === "customer" && (
+              <NavLink to="/app/jobs" className={navClass}>
+                Meus Jobs
+              </NavLink>
+            )}
 
-      {/* Mobile drawer */}
-      {open && (
-  <div className="md:hidden border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-    <div className="container py-3 flex flex-col gap-2">
-      <ThemeToggle />
-            <LinkCls to="/login">Login</LinkCls>
-            <LinkCls to="/offers">Ofertas</LinkCls>
-<LinkCls to="/conversations">Conversas</LinkCls>
-            {user?.role === "customer" && <LinkCls to="/customer">Cliente</LinkCls>}
-            {user?.role === "provider" && <LinkCls to="/provider">Prestador</LinkCls>}
-            {user && <Button onClick={logout} variant="outline">Sair</Button>}
+            <NavLink to="/app/conversations" className={navClass}>
+              Conversas
+            </NavLink>
+
+            {/* Prestador vê "Prestador" */}
+            {(user?.role === "provider" || user?.role === "admin") && (
+              <NavLink to="/app/provider" className={navClass}>
+                Prestador
+              </NavLink>
+            )}
+
+            <NavLink to="/como-funciona" className={navClass}>
+              Como Funciona
+            </NavLink>
+            <NavLink to="/precos" className={navClass}>
+              Preços
+            </NavLink>
+          </nav>
+
+          {/* Perfil / Ações à direita (exemplo simples) */}
+          <div className="flex items-center gap-2">
+            {user ? (
+              <>
+                <Link to="/profile" className="btn btn-outline">
+                  {user.name ?? "Meu Perfil"}
+                </Link>
+                <button onClick={logout} className="btn btn-outline">
+                  Sair
+                </button>
+              </>
+            ) : (
+              <Link to="/login" className="btn btn-solid">
+                Entrar
+              </Link>
+            )}
           </div>
         </div>
-      )}
-    </header>
+      </header>
+
+      <main>
+        <Outlet />
+      </main>
+    </>
   );
 }

@@ -1,23 +1,23 @@
+// App.tsx
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import Layout from "@/components/Layout";
 import Home from "@/pages/Home";
 import LoginPage from "@/pages/Login";
-import RegisterPage from "@/pages/Register";
-import HowItWorks from "@/pages/HowItWorks";
-import PricingPage from "@/pages/Pricing";
-
 import OffersPage from "@/pages/Offers";
 import CustomerJobs from "@/pages/CustomerJobs";
 import ConversationsPage from "@/pages/Conversations";
 import ConversationDetail from "@/pages/ConversationDetail";
-import ProviderDashboard from "@/pages/ProviderDashboard"; // <— usar este como principal
-
-import AddressesPage from "@/pages/Addresses";
-import ProfilePage from "@/pages/Profile";
-import CustomerDashboard from "@/pages/CustomerDashboard";
-
+import ProviderDashboard from "@/pages/ProviderJobs";
 import { Protected } from "@/components/Protected";
+import HowItWorks from "@/pages/HowItWorks";
+import RegisterPage from "@/pages/Register";
+import PricingPage from "@/pages/Pricing";
+import ProfilePage from "@/pages/Profile";
+import FAQPage from "@/pages/FAQ";
+import HelpCenter from "@/pages/HelpCenter";
+import ContactPage from "@/pages/Contact";
+
 
 function NotFound() {
   return (
@@ -31,14 +31,30 @@ function NotFound() {
 export default function App() {
   return (
     <Routes>
-      {/* TODAS as páginas “públicas” e “internas” usando o mesmo Layout (ganham header/footer) */}
+      {/* tudo que deve ter Header/Footer */}
       <Route path="/" element={<Layout />}>
-        {/* públicas */}
         <Route index element={<Home />} />
+
+        {/* páginas públicas */}
         <Route path="como-funciona" element={<HowItWorks />} />
         <Route path="precos" element={<PricingPage />} />
+        <Route path="faq" element={<FAQPage />} />
+        <Route path="ajuda" element={<HelpCenter />} />
+        <Route path="contato" element={<ContactPage />} />
 
-        {/* área logada (/app/...) */}
+        {/* perfil (protegido) */}
+        <Route
+          path="profile"
+          element={
+            <Protected>
+              <ProfilePage />
+            </Protected>
+          }
+        />
+        {/* aceitar /app/profile também */}
+        <Route path="app/profile" element={<Navigate to="/profile" replace />} />
+
+        {/* área app (protegida) */}
         <Route
           path="app/offers"
           element={
@@ -47,7 +63,6 @@ export default function App() {
             </Protected>
           }
         />
-
         <Route
           path="app/jobs"
           element={
@@ -56,7 +71,6 @@ export default function App() {
             </Protected>
           }
         />
-
         <Route
           path="app/conversations"
           element={
@@ -73,36 +87,6 @@ export default function App() {
             </Protected>
           }
         />
-
-        {/* NOVAS ROTAS que estavam “sobrando” */}
-        <Route
-          path="app/addresses"
-          element={
-            <Protected>
-              <AddressesPage />
-            </Protected>
-          }
-        />
-
-        <Route
-          path="app/profile"
-          element={
-            <Protected>
-              <ProfilePage />
-            </Protected>
-          }
-        />
-
-        <Route
-          path="app/dashboard"
-          element={
-            <Protected>
-              <CustomerDashboard />
-            </Protected>
-          }
-        />
-
-        {/* provider */}
         <Route
           path="app/provider"
           element={
@@ -112,16 +96,16 @@ export default function App() {
           }
         />
 
-        {/* catch-all */}
+        {/* redirecionar /app para home */}
+        <Route path="app" element={<Navigate to="/" replace />} />
+
+        {/* 404 com layout */}
         <Route path="*" element={<NotFound />} />
       </Route>
 
-      {/* fora do layout: auth */}
+      {/* rotas fora do layout (sem Header/Footer) */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-
-      {/* compat: enviar /app para / */}
-      <Route path="/app" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

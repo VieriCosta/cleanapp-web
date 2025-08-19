@@ -76,8 +76,8 @@ export default function Footer() {
           <div>
             <div className="font-semibold mb-3">Suporte</div>
             <ul className="space-y-2 text-sm">
-              <li><a className="hover:underline" href="#">Central de Ajuda</a></li>
-              <li><a className="hover:underline" href="#">Contato</a></li>
+              <li><Link to="/ajuda" className="hover:underline">Central de Ajuda</Link></li>
+              <li><Link to="/contato" className="hover:underline">Contato</Link></li>
               <li><a className="hover:underline" href="#">Segurança</a></li>
               <li><a className="hover:underline" href="#">Termos de Uso</a></li>
               <li><a className="hover:underline" href="#">Privacidade</a></li>
