@@ -42,7 +42,7 @@ export default function Layout() {
 
             {/* Prestador vê "Prestador" */}
             {(user?.role === "provider" || user?.role === "admin") && (
-              <NavLink to="/app/provider" className={navClass}>
+              <NavLink to="/app/my-services" className={navClass}>
                 Prestador
               </NavLink>
             )}

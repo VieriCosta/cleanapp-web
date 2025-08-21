@@ -1,267 +1,108 @@
-import { useEffect, useMemo, useState } from "react";
-import {
-  listProviderJobs,
-  acceptJob,
-  startJob,
-  finishJob,
-  cancelJob,
-  type Job,
-  type JobStatus,
-} from "@/lib/api";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { useEffect, useState } from "react";
+import { listMyOffers, deleteMyOffer, MyOffer } from "@/lib/api";
 
-type TabKey = "pending" | "accepted" | "started" | "done" | "canceled" | "all";
+export default function ProviderDashboard() {
+  const [items, setItems] = useState<MyOffer[]>([]);
+  const [loading, setLoading] = useState(true);
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "pending", label: "Pendentes" },
-  { key: "accepted", label: "Aceitos" },
-  { key: "started", label: "Em andamento" },
-  { key: "done", label: "Concluídos" },
-  { key: "canceled", label: "Cancelados" },
-  { key: "all", label: "Todos" },
-];
-
-function money(v: any) {
-  if (v == null) return "—";
-  const n = Number(v);
-  if (Number.isNaN(n)) return String(v);
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-export default function ProviderJobs() {
-  const [tab, setTab] = useState<TabKey>("pending");
-  const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [data, setData] = useState<{ total: number; page: number; pageSize: number; items: Job[] }>({
-    total: 0,
-    page: 1,
-    pageSize: 10,
-    items: [],
-  });
-  const [error, setError] = useState<string | null>(null);
-
-  async function fetchJobs() {
+  async function load() {
     try {
       setLoading(true);
-      setError(null);
-      const resp = await listProviderJobs({
-        page,
-        pageSize: 10,
-        status: tab === "all" ? "all" : (tab as JobStatus),
-      });
-      setData(resp);
-    } catch (e: any) {
-      setError(e?.response?.data?.message || "Falha ao carregar jobs");
+      const res = await listMyOffers();
+      setItems(res.items);
+    } catch (e) {
+      console.error("Erro ao carregar minhas ofertas", e);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    setPage(1); // ao trocar tab, resetar para 1
-  }, [tab]);
+    load();
+  }, []);
 
-  useEffect(() => {
-    fetchJobs();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, page]);
-
-  async function handleAction(job: Job, action: "accept" | "start" | "finish" | "cancel") {
+  async function handleDelete(id: string) {
+    if (!confirm("Excluir esta oferta?")) return;
     try {
-      setLoading(true);
-      if (action === "accept") await acceptJob(job.id);
-      if (action === "start") await startJob(job.id);
-      if (action === "finish") await finishJob(job.id);
-      if (action === "cancel") await cancelJob(job.id);
-      await fetchJobs();
+      await deleteMyOffer(id);
+      setItems((prev) => prev.filter((o) => o.id !== id));
     } catch (e: any) {
-      alert(e?.response?.data?.message || "Não foi possível executar a ação");
-    } finally {
-      setLoading(false);
+      if (e?.response?.status === 403) {
+        alert("Você não tem permissão para excluir esta oferta.");
+      } else if (e?.response?.status === 404) {
+        alert("Oferta não encontrada (ou não é sua).");
+      } else {
+        alert("Erro ao excluir. Tente novamente.");
+      }
     }
   }
-
-  const totalPages = useMemo(() => {
-    if (!data?.pageSize) return 1;
-    return Math.max(1, Math.ceil((data?.total || 0) / data.pageSize));
-  }, [data]);
 
   return (
-    <div className="container py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Meus Serviços (Prestador)</h1>
-      </div>
+    <div className="space-y-6">
+      <header className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Meus serviços</h1>
+        {/* (Opcional) botão de criação futura */}
+        {/* <button className="btn btn-solid" onClick={() => ...}>Novo serviço</button> */}
+      </header>
 
-      {/* Tabs */}
-      <div className="mb-6 flex flex-wrap gap-2">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            className={
-              "btn " +
-              (tab === t.key
-                ? "btn-solid"
-                : "btn-outline")
-            }
-            onClick={() => setTab(t.key)}
-            disabled={loading}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Lista */}
-      <div className="space-y-4">
-        {loading && (
-          <div className="card p-5">Carregando...</div>
-        )}
-
-        {!loading && error && (
-          <div className="card p-5 text-red-600">{error}</div>
-        )}
-
-        {!loading && !error && data.items.length === 0 && (
-          <div className="card p-5 opacity-70">Nenhum serviço encontrado.</div>
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {loading && <div>Carregando...</div>}
+        {!loading && items.length === 0 && (
+          <div className="opacity-70">Você ainda não possui serviços cadastrados.</div>
         )}
 
         {!loading &&
-          !error &&
-          data.items.map((job) => (
-            <div key={job.id} className="card">
+          items.map((o) => (
+            <div key={o.id} className="card">
               <div className="card-body">
-                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-start justify-between gap-4">
                   <div>
-                    <div className="text-lg font-medium">
-                      {job.offer?.title || job.category?.name || "Serviço"}
-                    </div>
-                    <div className="text-sm opacity-70">
-                      Cliente: {job.customer?.name ?? "—"}
-                    </div>
-                    <div className="text-sm opacity-70">
-                      Endereço: {job.address?.label ?? job.address?.city ?? "—"}
-                      {job.address?.state ? ` - ${job.address.state}` : ""}
-                    </div>
-                    <div className="text-sm opacity-70">
-                      Data:{" "}
-                      {job.datetime
-                        ? format(new Date(job.datetime), "dd/MM/yyyy HH:mm", { locale: ptBR })
-                        : "—"}
-                    </div>
-                    <div className="text-sm opacity-70">
-                      Previsto: {money(job.priceEstimated)}{" "}
-                      {job.priceFinal ? ` • Final: ${money(job.priceFinal)}` : ""}
-                    </div>
-                    <div className="mt-1 inline-flex items-center gap-2 text-xs">
-                      <span className="rounded-full bg-gray-100 px-2 py-0.5 dark:bg-gray-700">
-                        Status: {job.status}
-                      </span>
-                      {job.paymentStatus && (
-                        <span className="rounded-full bg-gray-100 px-2 py-0.5 dark:bg-gray-700">
-                          Pagamento: {job.paymentStatus}
-                        </span>
-                      )}
+                    <div className="font-medium">{o.title}</div>
+                    {o.description && (
+                      <div className="text-sm opacity-70 mt-1 line-clamp-2">{o.description}</div>
+                    )}
+                    <div className="mt-2 text-sm">
+                      <span className="font-semibold">
+                        {Intl.NumberFormat("pt-BR", {
+                          style: "currency",
+                          currency: "BRL",
+                        }).format(Number(o.priceBase))}
+                      </span>{" "}
+                      <span className="opacity-70">/ {o.unit}</span>
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    {/* Regras de ação conforme status */}
-                    {job.status === "pending" && (
-                      <>
-                        <button
-                          className="btn btn-solid"
-                          onClick={() => handleAction(job, "accept")}
-                          disabled={loading}
-                        >
-                          Aceitar
-                        </button>
-                        <button
-                          className="btn btn-outline"
-                          onClick={() => handleAction(job, "cancel")}
-                          disabled={loading}
-                        >
-                          Recusar
-                        </button>
-                      </>
-                    )}
+                  <div className="text-right space-y-2">
+                    <span
+                      className={`inline-block text-xs px-2 py-1 rounded ${
+                        o.active
+                          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                          : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                      }`}
+                    >
+                      {o.active ? "Ativa" : "Inativa"}
+                    </span>
 
-                    {job.status === "accepted" && (
-                      <>
-                        <button
-                          className="btn btn-solid"
-                          onClick={() => handleAction(job, "start")}
-                          disabled={loading}
-                        >
-                          Iniciar
-                        </button>
-                        <button
-                          className="btn btn-outline"
-                          onClick={() => handleAction(job, "cancel")}
-                          disabled={loading}
-                        >
-                          Cancelar
-                        </button>
-                      </>
-                    )}
-
-                    {job.status === "started" && (
-                      <>
-                        <button
-                          className="btn btn-solid"
-                          onClick={() => handleAction(job, "finish")}
-                          disabled={loading}
-                        >
-                          Finalizar
-                        </button>
-                        <button
-                          className="btn btn-outline"
-                          onClick={() => handleAction(job, "cancel")}
-                          disabled={loading}
-                        >
-                          Cancelar
-                        </button>
-                      </>
-                    )}
-
-                    {(job.status === "done" || job.status === "canceled") && (
+                    <div className="flex gap-2 justify-end">
+                      {/* (Opcional) Editar futuro */}
+                      {/* <button className="px-3 py-1.5 rounded-xl border text-sm">Editar</button> */}
                       <button
-                        className="btn btn-outline"
-                        onClick={() => navigator.clipboard.writeText(job.id)}
-                        title="Copiar ID do job"
+                        onClick={() => handleDelete(o.id)}
+                        className="px-3 py-1.5 rounded-xl border text-sm bg-red-600 text-white hover:bg-red-700"
                       >
-                        Copiar ID
+                        Excluir
                       </button>
-                    )}
+                    </div>
                   </div>
+                </div>
+
+                <div className="mt-3 text-xs opacity-60">
+                  Criada em {new Date(o.createdAt).toLocaleDateString("pt-BR")}
                 </div>
               </div>
             </div>
           ))}
       </div>
-
-      {/* Paginação */}
-      {!loading && !error && totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-center gap-2">
-          <button
-            className="btn btn-outline"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page <= 1 || loading}
-          >
-            Anterior
-          </button>
-          <div className="text-sm opacity-70">
-            Página {page} de {totalPages}
-          </div>
-          <button
-            className="btn btn-outline"
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page >= totalPages || loading}
-          >
-            Próxima
-          </button>
-        </div>
-      )}
     </div>
   );
 }

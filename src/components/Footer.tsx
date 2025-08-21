@@ -68,7 +68,6 @@ export default function Footer() {
               <li><Link to="/precos" className="hover:underline">Preços</Link></li>
               <li><Link to="/app/offers" className="hover:underline">Para Prestadores</Link></li>
               <li><Link to="/faq" className="hover:underline">FAQ</Link></li>
-              <li><Link to="/blog" className="hover:underline">Blog</Link></li>
             </ul>
           </div>
 

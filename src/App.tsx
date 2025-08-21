@@ -8,7 +8,6 @@ import OffersPage from "@/pages/Offers";
 import CustomerJobs from "@/pages/CustomerJobs";
 import ConversationsPage from "@/pages/Conversations";
 import ConversationDetail from "@/pages/ConversationDetail";
-import ProviderDashboard from "@/pages/ProviderJobs";
 import { Protected } from "@/components/Protected";
 import HowItWorks from "@/pages/HowItWorks";
 import RegisterPage from "@/pages/Register";
@@ -17,6 +16,8 @@ import ProfilePage from "@/pages/Profile";
 import FAQPage from "@/pages/FAQ";
 import HelpCenter from "@/pages/HelpCenter";
 import ContactPage from "@/pages/Contact";
+import ProviderServices from "@/pages/ProviderServices";
+import ProviderPublic from "@/pages/ProviderPublic";
 
 
 function NotFound() {
@@ -41,6 +42,7 @@ export default function App() {
         <Route path="faq" element={<FAQPage />} />
         <Route path="ajuda" element={<HelpCenter />} />
         <Route path="contato" element={<ContactPage />} />
+        <Route path="providers/:id" element={<ProviderPublic />} />
 
         {/* perfil (protegido) */}
         <Route
@@ -91,10 +93,18 @@ export default function App() {
           path="app/provider"
           element={
             <Protected roles={["provider", "admin"]}>
-              <ProviderDashboard />
+              <ProviderServices />
             </Protected>
           }
         />
+        <Route
+  path="app/my-services"
+  element={
+    <Protected roles={["provider", "admin"]}>
+      <ProviderServices />
+    </Protected>
+  }
+/>
 
         {/* redirecionar /app para home */}
         <Route path="app" element={<Navigate to="/" replace />} />

@@ -299,6 +299,101 @@ export async function sendSupportMessage(payload: {
   return data; // { ok: true }
 }
 
+// --- CATEGORIES (listagem pública) ---
+export type Category = { id: string; name: string; slug: string };
+export async function listCategories() {
+  const { data } = await api.get("/categories");
+  return data as { items: Category[] };
+}
+
+// --- MY OFFERS (prestador) ---
+export type MyOffer = {
+  id: string;
+  title: string;
+  description?: string | null;
+  priceBase: number | string;
+  unit: "hora" | "diaria";
+  categoryId: string;
+  active: boolean;
+  createdAt: string;
+};
+
+export async function listMyOffers() {
+  const { data } = await api.get("/my/offers");
+  return data as { items: any[] };
+}
+
+export async function createMyOffer(payload: {
+  title: string;
+  description?: string;
+  priceBase: number;
+  unit: "hora" | "diaria";
+  categoryId: string;
+  active?: boolean;
+}) {
+  const { data } = await api.post("/my/offers", payload);
+  return data as { offer: MyOffer };
+}
+
+export async function updateMyOffer(id: string, payload: Partial<Omit<MyOffer, "id" | "createdAt">>) {
+  const { data } = await api.put(`/my/offers/${id}`, payload);
+  return data as { offer: MyOffer };
+}
+
+export async function deleteMyOffer(id: string) {
+  const { data } = await api.delete(`/my/offers/${id}`);
+  return data as { ok: boolean };
+}
+
+/* ============ PROVIDERS (público) ============ */
+export async function listProviders(params: { page?: number; pageSize?: number } = {}) {
+  const { data } = await api.get("/providers", { params });
+  return data as {
+    total: number;
+    page: number;
+    pageSize: number;
+    items: Array<{
+      id: string;
+      bio?: string | null;
+      verified: boolean;
+      scoreAvg?: number | null;
+      totalReviews?: number | null;
+      user: { id: string; name?: string | null; photoUrl?: string | null };
+      offersCount: number;
+      sampleOffers: Array<{
+        id: string;
+        title: string;
+        priceBase: number | string;
+        unit: "hora" | "diaria" | "servico";
+        category?: { id: string; name: string; slug: string } | null;
+      }>;
+    }>;
+  };
+}
+
+export async function getProviderPublic(id: string) {
+  const { data } = await api.get(`/providers/${id}`);
+  return data as {
+    id: string;
+    bio?: string | null;
+    verified: boolean;
+    radiusKm?: number | null;
+    scoreAvg?: number | null;
+    totalReviews?: number | null;
+    user: { id: string; name?: string | null; photoUrl?: string | null; phone?: string | null };
+    location?: { city?: string | null; state?: string | null } | null;
+    offersCount: number;
+    offers: Array<{
+      id: string;
+      title: string;
+      description?: string | null;
+      priceBase: number | string;
+      unit: "hora" | "diaria" | "servico";
+      active: boolean;
+      category?: { id: string; name: string; slug: string } | null;
+    }>;
+  };
+}
 
 
 export default api;

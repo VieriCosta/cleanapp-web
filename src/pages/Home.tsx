@@ -163,21 +163,30 @@ export default function Home() {
         {!loading && !err && (
           <>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {offers.items.map((o) => (
-                <ProviderCard
-                  key={o.id}
-                  offer={o}
-                  // Ex.: se futuramente o backend devolver mais dados, você pode preencher:
-                  // distanceKm={o.distanceKm}
-                  // rating={o.ratingAvg}
-                  // ratingCount={o.ratingCount}
-                  // verified={o.provider?.profile?.verified}
-                  // tags={o.tags}
+              {offers.items.map((o) => {
+                // tenta extrair um id público de prestador do retorno da oferta
+                const providerId =
+                  (o as any).providerProfileId ??
+                  (o as any).providerId ??
+                  (o as any).provider?.id ??
+                  null;
 
-                  onOpenProfile={() => navigate(`/profile?offer=${o.id}`)}
-                  onMessage={() => navigate(`/app/conversations`)}
-                />
-              ))}
+                return (
+                  <ProviderCard
+                    key={o.id}
+                    offer={o}
+                    onOpenProfile={() => {
+                      if (providerId) {
+                        navigate(`/providers/${providerId}`);
+                      } else {
+                        // fallback se a API não enviar o id do prestador
+                        navigate(`/profile?offer=${o.id}`);
+                      }
+                    }}
+                    onMessage={() => navigate(`/app/conversations`)}
+                  />
+                );
+              })}
             </div>
 
             {offers.items.length === 0 && (
