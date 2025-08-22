@@ -17,7 +17,8 @@ import FAQPage from "@/pages/FAQ";
 import HelpCenter from "@/pages/HelpCenter";
 import ContactPage from "@/pages/Contact";
 import ProviderServices from "@/pages/ProviderServices";
-import ProviderPublic from "@/pages/ProviderPublic";
+import ProviderPublicProfile from "@/pages/ProviderPublicProfile";
+import ProvidersPage from "@/pages/Providers"; 
 
 
 function NotFound() {
@@ -42,7 +43,10 @@ export default function App() {
         <Route path="faq" element={<FAQPage />} />
         <Route path="ajuda" element={<HelpCenter />} />
         <Route path="contato" element={<ContactPage />} />
-        <Route path="providers/:id" element={<ProviderPublic />} />
+        <Route path="providers" element={<ProvidersPage />} />
+        // App.tsx (trecho)
+<Route path="/providers/:id" element={<ProviderPublicProfile />} />
+
 
         {/* perfil (protegido) */}
         <Route

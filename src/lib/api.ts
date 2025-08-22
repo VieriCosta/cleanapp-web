@@ -395,5 +395,38 @@ export async function getProviderPublic(id: string) {
   };
 }
 
+// --- Tipos para a lista pública de prestadores ---
+export type ProviderPublic = {
+  id: string;
+  bio?: string | null;
+  verified?: boolean | null;
+  scoreAvg?: number | null;
+  totalReviews?: number | null;
+  user: { id: string; name: string; photoUrl?: string | null };
+  offers: {
+    id: string;
+    title: string;
+    priceBase: number | string;
+    unit: string;
+    category?: { id: string; name: string };
+  }[];
+};
+
+export async function listPublicProviders(params: {
+  q?: string;
+  categoryId?: string;
+  city?: string;
+  minScore?: number;
+  page?: number;
+  pageSize?: number;
+}) {
+  const { data } = await api.get("/public/providers", { params });
+  return data as {
+    total: number;
+    page: number;
+    pageSize: number;
+    items: ProviderPublic[];
+  };
+}
 
 export default api;

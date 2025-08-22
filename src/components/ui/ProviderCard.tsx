@@ -3,24 +3,28 @@ import { Offer } from "@/lib/api";
 
 function moneyBRL(v: number | string | null | undefined) {
   const n =
-    typeof v === "string"
-      ? Number(v)
-      : typeof v === "number"
-      ? v
-      : 0;
+    typeof v === "string" ? Number(v) :
+    typeof v === "number" ? v : 0;
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 type Props = {
-  offer: Offer;
-  // opcionais para enriquecer o card caso tenha vindo no payload
+  offer: {
+    id: string;
+    title: string;
+    priceBase: number | string;
+    unit: string;
+    provider?: { user?: { name?: string | null } | null } | null;
+  };
+  onOpenProfile?: () => void;
+  onMessage?: () => void;
+  onHire?: () => void; // NOVO
+  // estes abaixo você já usava no JSX; mantive como opcionais
   distanceKm?: number | null;
   rating?: number | null;
   ratingCount?: number | null;
   verified?: boolean;
   tags?: string[];
-  onOpenProfile?: () => void;
-  onMessage?: () => void;
 };
 
 export default function ProviderCard({
@@ -32,6 +36,7 @@ export default function ProviderCard({
   tags = [],
   onOpenProfile,
   onMessage,
+  onHire, // <- ADICIONADO: desestruturar a prop
 }: Props) {
   const name = offer?.provider?.user?.name ?? "Prestador";
   const price = moneyBRL(offer?.priceBase);
@@ -114,6 +119,16 @@ export default function ProviderCard({
         >
           Ver Perfil
         </button>
+
+        {/* NOVO botão de agendar (só chama se a prop existe) */}
+        <button
+          type="button"
+          onClick={onHire}
+          className="flex-1 rounded-xl border border-gray-300 dark:border-gray-600 text-sm py-2 hover:bg-gray-50 dark:hover:bg-gray-700"
+        >
+          Agendar
+        </button>
+
         <button
           type="button"
           onClick={onMessage}

@@ -29,7 +29,6 @@ export default function Home() {
         setLoading(true);
         setErr(null);
         const data = await listOffers({ page: 1, pageSize: 6 });
-        // listOffers já retorna { total, page, pageSize, items }
         setOffers(data);
       } catch (e: any) {
         setErr(e?.response?.data?.message || e?.message || "Falha ao carregar ofertas");
@@ -136,7 +135,7 @@ export default function Home() {
           <h2 className="section-title">Prestadores disponíveis</h2>
           <button
             type="button"
-            onClick={() => navigate("/app/offers")}
+            onClick={() => navigate("/providers")}
             className="text-sm text-blue-600 hover:underline"
           >
             Ver todas as ofertas

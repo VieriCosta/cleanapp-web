@@ -1,131 +1,141 @@
 import { useEffect, useState } from "react";
-import api from "../lib/api";
+import { createJob, getMyAddresses, Address } from "@/lib/api";
 
-type Address = {
-  id: string;
-  label?: string | null;
-  street: string;
-  number?: string | null;
-  city: string;
-  state: string;
-  zip: string;
-  isDefault?: boolean;
-};
-
-type Offer = {
-  id: string;
-  title: string;
-  unit: string;
-  priceBase: number;
-};
-
-export default function CreateJobModal({
-  open,
-  onClose,
-  offer,
-  onCreated,
-}: {
+type Props = {
   open: boolean;
   onClose: () => void;
-  offer: Offer | null;
-  onCreated?: () => void;
-}) {
+  offerId: string | null;           // oferta escolhida
+};
+
+export default function CreateJobModal({ open, onClose, offerId }: Props) {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [addressId, setAddressId] = useState<string>("");
   const [datetime, setDatetime] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     (async () => {
-      const res = await api.get("/addresses/mine");
-      const items = res.data ?? [];
-      setAddresses(items);
-      const def = items.find((a: Address) => a.isDefault) ?? items[0];
-      setAddressId(def?.id ?? "");
+      setErr(null);
+      try {
+        const res = await getMyAddresses();
+        const list = Array.isArray(res) ? res : res.items ?? [];
+        setAddresses(list);
+        if (list.length > 0) setAddressId(list[0].id);
+      } catch (e: any) {
+        setErr(e?.response?.data?.message || "Falha ao carregar endereços");
+      }
     })();
   }, [open]);
 
-  async function submit() {
-    if (!offer || !addressId || !datetime) return;
-    await api.post("/jobs", {
-      offerId: offer.id,
-      addressId,
-      datetime,
-      notes: notes || undefined,
-    });
-    onCreated?.();
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!offerId) return;
+    if (!addressId || !datetime) {
+      setErr("Preencha endereço e data/hora.");
+      return;
+    }
+    setLoading(true);
+    setErr(null);
+    try {
+      await createJob({
+        offerId,
+        addressId,
+        datetime,
+        notes: notes.trim() || undefined,
+      });
+      onClose();
+      // dica: você pode redirecionar pra /app/jobs ou /app/conversations
+      // aqui não navego pra manter o modal simples
+    } catch (e: any) {
+      setErr(e?.response?.data?.message || "Não foi possível criar o agendamento");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  if (!open || !offer) return null;
+  if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="w-full max-w-lg rounded-xl bg-white dark:bg-zinc-950 border dark:border-zinc-800 p-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-full max-w-lg rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-lg font-semibold">Contratar: {offer.title}</div>
+          <h3 className="text-lg font-semibold">Agendar serviço</h3>
           <button
             onClick={onClose}
-            className="px-2 py-1 rounded-lg border dark:border-zinc-800"
+            className="text-sm px-3 py-1 rounded-xl border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
           >
             Fechar
           </button>
         </div>
 
-        <div className="grid gap-3">
-          <label className="text-sm">
-            Endereço
+        {err && (
+          <div className="mb-3 rounded-xl border border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-900/20 p-3 text-red-700 dark:text-red-300">
+            {err}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="label">Endereço</label>
             <select
-              className="mt-1 w-full border rounded-lg p-2 dark:bg-zinc-900 dark:border-zinc-800"
+              className="input"
               value={addressId}
               onChange={(e) => setAddressId(e.target.value)}
             >
               {addresses.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.label
-                    ? `${a.label} — `
-                    : ""}
-                  {a.street} {a.number ?? ""} — {a.city}/{a.state}
+                  {a.label ?? "Endereço"} — {a.city ?? ""}/{a.state ?? ""}
                 </option>
               ))}
             </select>
-          </label>
+            {addresses.length === 0 && (
+              <div className="text-sm opacity-70 mt-1">
+                Você ainda não tem endereços. Adicione em <b>Perfil &gt; Endereços</b>.
+              </div>
+            )}
+          </div>
 
-          <label className="text-sm">
-            Data e hora
+          <div>
+            <label className="label">Data & hora</label>
             <input
               type="datetime-local"
-              className="mt-1 w-full border rounded-lg p-2 dark:bg-zinc-900 dark:border-zinc-800"
+              className="input"
               value={datetime}
               onChange={(e) => setDatetime(e.target.value)}
             />
-          </label>
+          </div>
 
-          <label className="text-sm">
-            Observações (opcional)
+          <div>
+            <label className="label">Observações (opcional)</label>
             <textarea
-              className="mt-1 w-full border rounded-lg p-2 dark:bg-zinc-900 dark:border-zinc-800"
+              className="input"
               rows={3}
+              placeholder="Algum detalhe importante para o prestador?"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
-          </label>
-        </div>
+          </div>
 
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="px-3 py-2 rounded-lg border dark:border-zinc-800"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={submit}
-            className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-          >
-            Confirmar
-          </button>
-        </div>
+          <div className="pt-2 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={loading || !offerId}
+              className="btn btn-solid disabled:opacity-60"
+            >
+              {loading ? "Salvando..." : "Confirmar agendamento"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

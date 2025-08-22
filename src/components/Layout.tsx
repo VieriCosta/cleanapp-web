@@ -1,3 +1,4 @@
+// src/components/Layout.tsx
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/store/auth";
 import ThemeToggle from "@/theme/ThemeToggle";
@@ -22,20 +23,77 @@ export default function Layout() {
           </Link>
 
           <nav className="flex items-center gap-2">
-            <NavLink to="/" end className={({isActive}) => `px-3 py-2 rounded-xl text-sm ${isActive?'bg-blue-600 text-white':'hover:bg-gray-100 dark:hover:bg-gray-800'}`}>Home</NavLink>
-            <NavLink to="/app/offers" className={({isActive}) => `px-3 py-2 rounded-xl text-sm ${isActive?'bg-blue-600 text-white':'hover:bg-gray-100 dark:hover:bg-gray-800'}`}>Ofertas</NavLink>
-            <NavLink to="/app/conversations" className={({isActive}) => `px-3 py-2 rounded-xl text-sm ${isActive?'bg-blue-600 text-white':'hover:bg-gray-100 dark:hover:bg-gray-800'}`}>Conversas</NavLink>
+            <NavLink
+              to="/"
+              end
+              className={({ isActive }) =>
+                `px-3 py-2 rounded-xl text-sm ${
+                  isActive
+                    ? "bg-blue-600 text-white"
+                    : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                }`
+              }
+            >
+              Home
+            </NavLink>
 
-            {/* Só prestador/admin enxerga "Meus serviços" */}
-            {(user?.role === "provider" || user?.role === "admin") && (
+            <NavLink
+              to="/app/offers"
+              className={({ isActive }) =>
+                `px-3 py-2 rounded-xl text-sm ${
+                  isActive
+                    ? "bg-blue-600 text-white"
+                    : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                }`
+              }
+            >
+              Ofertas
+            </NavLink>
+
+            {/* >>> SÓ CLIENTE: Meus Pedidos (/app/jobs) */}
+            {user?.role === "customer" && (
               <NavLink
-                to="/app/my-services"
-                className={({isActive}) =>
-                  `px-3 py-2 rounded-xl text-sm ${isActive ? 'bg-blue-600 text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`
-                }>
-                Meus serviços
+                to="/app/jobs"
+                className={({ isActive }) =>
+                  `px-3 py-2 rounded-xl text-sm ${
+                    isActive
+                      ? "bg-blue-600 text-white"
+                      : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                  }`
+                }
+              >
+                Meus Pedidos
               </NavLink>
             )}
+
+            <NavLink
+              to="/app/conversations"
+              className={({ isActive }) =>
+                `px-3 py-2 rounded-xl text-sm ${
+                  isActive
+                    ? "bg-blue-600 text-white"
+                    : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                }`
+              }
+            >
+              Conversas
+            </NavLink>
+
+            {/* (Opcional) Link do prestador se quiser manter visível só para provider/admin
+            {user && (user.role === "provider" || user.role === "admin") && (
+              <NavLink
+                to="/app/provider"
+                className={({ isActive }) =>
+                  `px-3 py-2 rounded-xl text-sm ${
+                    isActive
+                      ? "bg-blue-600 text-white"
+                      : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                  }`
+                }
+              >
+                Área do Prestador
+              </NavLink>
+            )} */}
           </nav>
 
           <div className="flex items-center gap-2">
@@ -48,7 +106,11 @@ export default function Layout() {
                   aria-label="Ir para o meu perfil"
                   className="inline-flex h-6 w-6 rounded-full overflow-hidden ring-2 ring-transparent hover:ring-blue-400 transition"
                 >
-                  <img src={user.photoUrl ?? "/avatar-fallback.png"} alt="Foto de perfil" className="h-full w-full object-cover" />
+                  <img
+                    src={user.photoUrl}
+                    alt="Foto de perfil"
+                    className="h-full w-full object-cover"
+                  />
                 </Link>
 
                 <button
